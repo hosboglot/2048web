@@ -1,4 +1,5 @@
-from fastapi import Request, HTTPException, status, Depends
+from typing import Annotated
+from fastapi import HTTPException, status, Depends, Cookie
 from jose import jwt, JWTError
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,8 +10,8 @@ from app.auth.models import User
 from app.dao.session_maker import SessionDep
 
 
-def get_token(request: Request):
-    token = request.cookies.get('users_access_token')
+def get_token(users_access_token: Annotated[str | None, Cookie()] = None):
+    token = users_access_token
     if not token:
         raise TokenNoFound
     return token
