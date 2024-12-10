@@ -5,48 +5,89 @@ from websockets.exceptions import ConnectionClosed
 import json
 
 
-class GameServer:
+class WebsocketServer(Thread):
     def __init__(self):
-        self._thread: Thread | None = None
+        super().__init__()
         self._ws: ClientConnection | None = None
-        self._callbacks: list[Callable[[dict], None]] = []
+        self.ip: str = ''
+        self.headers: dict[str, str] = {}
 
-    def connect(self, ip: str, headers: dict[str, str]):
-        self._thread = Thread(target=self._listen)
-        self._ws = connect(
-            f'ws://{ip}',
-            additional_headers=headers)
-        self._thread.start()
+        self._close = False
+        self._conn_cback: Callable[[bool], None] = None
+        self._msg_cback: Callable[[dict], None] = None
+        self._close_cback: Callable[[bool], None] = None
 
-    def close(self):
-        self._ws.close()
-        self._ws = None
-        self._thread.join()
-        self._thread = None
+    def run(self):
+        res = self._connect()
+        if self._conn_cback:
+            self._conn_cback(res)
+        if not res:
+            return
 
-    def addCallback(self, func: Callable[[dict], None]):
-        self._callbacks.append(func)
+        close_res = self._listen()
 
-    def removeCallback(self, func: Callable[[dict], None]):
-        self._callbacks.remove(func)
+        if self._ws:
+            self._ws.close()
+        if self._close_cback:
+            self._close_cback(close_res)
+
+    def join(self):
+        if self._ws:
+            self._ws.close()
+        self._close = True
+        super().join()
+
+    def onConnected(self, func: Callable[[bool], None]):
+        '''
+        Callback to be called after connection attempt
+
+        Calls with True, if connected successfully
+        '''
+        self._conn_cback = func
+
+    def onMessage(self, func: Callable[[dict], None]):
+        '''Callback to be called on message receive'''
+        self._msg_cback = func
+
+    def onClosed(self, func: Callable[[bool], None]):
+        '''
+        Callback to be called on connection closed
+
+        Calls with True, if connection closed as expected
+        '''
+        self._close_cback = func
 
     def send(self, message_dict: dict):
+        '''Send message'''
         msg = json.dumps(message_dict)
-        self._ws.send(msg)
+        if self._ws:
+            self._ws.send(msg)
+
+    def _connect(self) -> bool:
+        try:
+            self._ws = connect(
+                f'ws://{self.ip}/game/1',
+                additional_headers=self.headers,
+                open_timeout=5)
+        except BaseException as e:
+            print(e)
+            return False
+        return True
 
     def _onMessage(self, message: str):
         msg_dict: dict = json.loads(message)
-        for cb in self._callbacks:
-            cb(msg_dict)
+        if self._msg_cback:
+            self._msg_cback(msg_dict)
 
-    def _listen(self):
+    def _listen(self) -> bool:
         try:
-            while True:
-                msg = self._ws.recv()
-                self._onMessage(msg)
+            while not self._close:
+                try:
+                    msg = self._ws.recv(0.5)
+                    if msg:
+                        self._onMessage(msg)
+                except TimeoutError:
+                    pass
         except ConnectionClosed:
-            pass
-        finally:
-            if self._ws:
-                self._ws.close()
-                self._ws = None
+            return False
+        return True

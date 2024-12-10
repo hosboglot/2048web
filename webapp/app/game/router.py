@@ -37,3 +37,4 @@ async def enter_game(
         await server.play(user.id)
     except websockets.WebSocketDisconnect:
         logger.info(f"Player {user.id} disconnected from game {server._game_id}")
+        await server.disconnect_player(user.id)

@@ -3,21 +3,11 @@ import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
 
-import GameServer
 
 Rectangle {
     id: root
 
-    GameServer {  //qmllint disable
-        id: server
-        onMessage: (msg) => {
-            console.log(msg);
-            messageReceiveText.text = msg;
-        }
-    }
-    function closeServer() {
-        server.close();
-    }
+    required property var gameManager
 
     Column {
         anchors.fill: parent
@@ -42,14 +32,14 @@ Rectangle {
             Button {
                 width: parent.width / 2; height: parent.height
                 text: "connect"
-                onClicked: server.connect(ipField.text, tokenField.text)
+                onClicked: root.gameManager.connect(ipField.text, tokenField.text)
             }
         }
 
         Button {
             width: parent.width; height: parent.height * 0.5
             text: "send"
-            onClicked: server.sendText(messageSendText.text)
+            onClicked: root.gameManager.sendText(messageSendText.text)
         }
         Row {
             width: parent.width; height: parent.height * 0.3

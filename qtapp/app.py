@@ -6,7 +6,9 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
-import qml_interface.server  # noqa
+import qml_interface.game_manager  # noqa
+import qml_interface.api_caller  # noqa
+import qml_interface.tile_model  # noqa
 
 
 if __name__ == "__main__":
