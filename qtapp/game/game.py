@@ -84,7 +84,7 @@ class Game(Thread):
             start_time = time()
 
             if self.user_input is not None and \
-                    start_time - input_sent_time >= 500:
+                    start_time - input_sent_time >= 100:
                 input_sent_time = time()
                 cmd = UserInput(input_sent_time,
                                 self._user_input,

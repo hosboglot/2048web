@@ -18,7 +18,7 @@ class GameServer:
         self._game_id = game_id
         self._connections: dict[int, WebSocket] = {}
         self._game_task: asyncio.Task | None = None
-        self._players_count = 2
+        self._players_count = 3
         self._player_inputs: dict[int, UserInput] = {}
         self._max_tiles: dict[int, int] = {}
         self._grid = Grid()
@@ -56,7 +56,7 @@ class GameServer:
     async def _game_loop(self):
         self._grid.spawn_start_tiles(self._connections.keys())
         self._max_tiles = dict(zip(self._connections.keys(), [2] * self._players_count))
-        last_move_times = dict(zip(self._connections.keys(), [0] * self._players_count))
+        # last_move_times = dict(zip(self._connections.keys(), [0] * self._players_count))
         last_simulated = time()
         last_tile_time = 0
         while self._connections:
@@ -69,9 +69,7 @@ class GameServer:
                 cmds = self._player_inputs.items()
                 for id, cmd in cmds:
                     if cmd is not None:
-                        if time() - last_move_times[id] > 500:
-                            self._grid.move(id, cmd.direction)
-                            last_move_times[id] = time()
+                        self._grid.move(id, cmd.direction)
                         self._player_inputs[id] = None
 
                 # если игрок после хода обновил рекорд ...
