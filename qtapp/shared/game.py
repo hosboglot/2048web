@@ -200,19 +200,32 @@ class Grid:
                 else:
                     self._move_tile(tile, pos_far)
 
-    def insert_random_tile(self, player_id: int):
+    def insert_random_tile(self, player_id: int, value: int | None = None):
         empty = self._cells_available()
+        value = value or (2 if randint(0, 9) <= 8 else 4)
         self._insert_tile(
             Tile(
                 choice(empty),
-                2 if randint(0, 9) <= 8 else 4,
+                value,
                 player_id
             )
         )
 
     def spawn_start_tiles(self, player_ids: list[int]):
         for id in player_ids:
-            self.insert_random_tile(id)
+            self.insert_random_tile(id, 2)
+
+    def find_players_max_tile(self) -> dict[int, int]:
+        counts: dict[int, int] = {}
+        for row in self._grid:
+            for tile in row:
+                if tile and tile.player_id != -1:
+                    if tile.player_id in counts.keys():
+                        counts[tile.player_id] = max(
+                            counts[tile.player_id], tile.value)
+                    else:
+                        counts[tile.player_id] = tile.value
+        return counts
 
     def _prepare_tiles(self):
         for row in self._grid:

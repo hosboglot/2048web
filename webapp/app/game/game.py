@@ -3,6 +3,7 @@ from fastapi.websockets import WebSocketState
 import asyncio
 from loguru import logger
 from time import time_ns
+from math import log2
 
 from shared.game import UserInput, Grid, Snapshot
 
@@ -19,6 +20,7 @@ class GameServer:
         self._game_task: asyncio.Task | None = None
         self._players_count = 1
         self._player_inputs: dict[int, UserInput] = {}
+        self._max_tiles: dict[int, int] = {}
         self._grid = Grid()
 
     async def connect_player(self, user_id: int, ws: WebSocket):
@@ -52,31 +54,48 @@ class GameServer:
         await ws.send_json({'type': 'snapshot', 'content': snapshot.to_json()})
 
     async def _game_loop(self):
+        self._max_tiles = dict(zip(self._connections.keys(), [2] * self._players_count))
         self._grid.spawn_start_tiles(self._connections.keys())
         last_simulated = time()
         last_tile_time = 0
         while self._connections:
             start_time = time()
+            # каждые 30 мсек обновляем поле
             if time() - last_simulated > 30:
                 last_simulated = time()
+
+                # применяем все команды, которые пришли от игроков
                 cmds = self._player_inputs.items()
                 for id, cmd in cmds:
                     if cmd is not None:
                         self._grid.move(id, cmd.direction)
                         self._player_inputs[id] = None
 
+                # если игрок после хода обновил рекорд ...
+                for id, val in self._grid.find_players_max_tile().items():
+                    if self._max_tiles[id] < val:
+                        self._max_tiles[id] = val
+                        # накидываем ему log_2(max_val) - 1 новых плиток
+                        for _ in range(int(log2(val)) - 1):
+                            self._grid.insert_random_tile(id)
+
+                # отправляем всем игрокам новое состояние игры
+                snapshot = Snapshot(time(), self._grid.tiles())
                 for id, ws in self._connections.items():
                     await self._send_snapshot(
-                        ws, id, Snapshot(time(), self._grid.tiles())
+                        ws, id, snapshot
                     )
 
+            # каждую секунду спавним новую ничейную плитку
             if time() - last_tile_time > 1000:
                 last_tile_time = time()
                 self._grid.insert_random_tile(-1)
 
+            # досыпаем оставшуюся часть тика
             frame_time = time() - start_time
-            sleep_time = (35 - frame_time) / 1e3
+            sleep_time = (30 - frame_time) / 1e3
             if sleep_time > 0:
                 # print(sleep_time)
                 await asyncio.sleep(sleep_time)
+
         self._player_inputs = {}
