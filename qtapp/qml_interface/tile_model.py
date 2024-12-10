@@ -29,11 +29,11 @@ class TileModel(QAbstractListModel):
         super().__init__(parent)
         self._container: list[Tile] = []
         self._color_map: dict[int, QColor] = {}
-        self._animation_model = TileAnimationModel(self)
+        # self._animation_model = TileAnimationModel(self)
 
-    @Property()
-    def animationModel(self):
-        return self._animation_model
+    # @Property()
+    # def animationModel(self):
+    #     return self._animation_model
 
     def rowCount(self, parent=QModelIndex()):
         if parent.isValid():
